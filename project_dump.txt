@@ -1,0 +1,483 @@
+--- FILE: include/buffer.h ---
+#pragma once
+
+typedef struct{
+    char* data;
+    int W;
+    int H;
+} Buffer;
+
+Buffer* buf_create(int w, int h);
+void buf_free(Buffer* buf);
+void buf_set(Buffer* buf, int x, int y, char value);
+char buf_get(Buffer* buf, int x, int y);
+void buf_print(Buffer* buf);
+void buf_fill(Buffer* buf, char value);
+void buf_set_string(Buffer* buf, int x, int y, const char* str);
+
+--- FILE: include/cursor.h ---
+#pragma once
+
+#include "buffer.h"
+#include "utils.h"
+#include <stdlib.h>
+
+typedef struct Text Text;
+
+typedef struct Cursor_s{
+    int cursor_x;
+    int cursor_y;
+    int global_cursor_x;
+    int global_cursor_y;
+} Cursor;
+
+Cursor* curs_new();
+
+void curs_free(Cursor* curs);
+
+void curs_render(Cursor* curs, Buffer* buf);
+
+void curs_move(Cursor *curs, struct Text* txt,  Dirs dir);
+
+--- FILE: include/input.h ---
+#pragma once
+
+typedef enum {
+    KEY_UNKNOWN,
+
+    // навигация
+    KEY_UP,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_HOME,
+    KEY_END,
+    KEY_PAGE_UP,
+    KEY_PAGE_DOWN,
+
+    // редактирование
+    KEY_ENTER,
+    KEY_BACKSPACE,
+    KEY_DELETE,
+    KEY_TAB,
+    KEY_ESC,
+
+    // Ctrl+буква
+    KEY_CTRL_A,
+    KEY_CTRL_B,
+    KEY_CTRL_C,
+    KEY_CTRL_D,
+    KEY_CTRL_E,
+    KEY_CTRL_F,
+    KEY_CTRL_G,
+    KEY_CTRL_H,
+    KEY_CTRL_J,
+    KEY_CTRL_K,
+    KEY_CTRL_L,
+    KEY_CTRL_N,
+    KEY_CTRL_O,
+    KEY_CTRL_P,
+    KEY_CTRL_Q,
+    KEY_CTRL_R,
+    KEY_CTRL_S,
+    KEY_CTRL_T,
+    KEY_CTRL_U,
+    KEY_CTRL_V,
+    KEY_CTRL_W,
+    KEY_CTRL_X,
+    KEY_CTRL_Y,
+    KEY_CTRL_Z,
+
+    // F-клавиши
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
+} Code;
+
+typedef struct {
+    Code code;
+    char ch;
+} Key;
+
+Key inp_read_key();
+
+--- FILE: include/terminal.h ---
+#pragma once
+
+#include <stdio.h>
+
+#include <termios.h>
+#include <unistd.h>
+
+// typedef struct{
+//     terminal
+// }
+
+void term_enable_raw();
+void term_clear();
+void term_cursor_to_start();
+void term_enable_invert();
+void term_disable_invert();
+
+--- FILE: include/text.h ---
+#pragma once
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "buffer.h"
+#include "vector.h"
+
+typedef struct Cursor_s Cursor;
+
+typedef struct{
+    vec* vector;
+} Text;
+
+Text* text_new();
+void text_free(Text* text);
+void text_add_line(Text* text, const char* inp_line);
+char* text_get_line(Text* text, int index);
+void text_render(Text* txt, Buffer* buf, Cursor* curs);
+
+--- FILE: include/utils.h ---
+#pragma once
+
+typedef enum{
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+} Dirs;
+
+--- FILE: include/vector.h ---
+#pragma once
+
+#include <stdlib.h>
+
+typedef struct{
+    void* data;
+    int size;
+    int capacity;
+    int element_size;
+}vec;
+
+vec* vec_new(int element_size_);
+void vec_free(vec* v);
+void vec_push_back(vec* v, void* value);
+void* vec_get(vec* v, int i);
+
+--- FILE: src/buffer.c ---
+#include "../include/buffer.h"
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+Buffer* buf_create(int w, int h){
+    Buffer* buf = malloc(sizeof(Buffer));
+    buf->data = malloc(w * h * sizeof(char));
+    buf->H = h;
+    buf->W = w;
+    return buf;
+}
+
+void buf_free(Buffer *buf){
+    free(buf->data);
+    free(buf);
+}
+
+void buf_set(Buffer* buf, int x, int y, char value){
+    if(x < 0 || x >= buf->W || y < 0 || y >= buf->H){
+        return;
+    }
+    buf->data[y * buf->W + x] = value;
+}
+
+char buf_get(Buffer *buf, int x, int y){
+    if(x < 0 || x >= buf->W || y < 0 || y >= buf->H){
+        return ' ';
+    }
+    return buf->data[y * buf->W + x];
+}
+
+void buf_print(Buffer* buf){
+    int d = 1;
+    for(int i = 0; i < buf->H * buf->W; i++){
+        printf("%c", buf->data[i]);
+        if(d == buf->W){
+            d = 0;
+            printf("\n");
+        }
+        d++;
+    }
+}
+
+void buf_fill(Buffer *buf, char value){
+    for(int i = 0; i < buf->H * buf->W; i++){
+        buf->data[i] = value;
+    }
+}
+
+void buf_set_string(Buffer* buf, int x, int y, const char *str){
+    if(((y * buf->W + x) > (buf->W * buf->H)) || ((strlen(str) + (y * buf->W + x)) > (buf->W * buf->H))){
+        return;
+    }
+    for(int i = 0; i < strlen(str); i++){
+        buf_set(buf, x + i, y, str[i]);
+    }
+}
+
+--- FILE: src/cursor.c ---
+#include "../include/cursor.h"
+#include "../include/utils.h"
+#include <stdlib.h>
+
+Cursor* curs_new(){
+    Cursor* curs = (Cursor*)malloc(sizeof(Cursor));
+    curs->cursor_x = 0;
+    curs->cursor_y = 0;
+    curs->global_cursor_x = 0;
+    curs->global_cursor_y = 0;
+    return curs;
+}
+
+void curs_free(Cursor *curs){
+    free(curs);
+}
+void curs_render(Cursor* curs, Buffer* buf){
+    buf_set(buf, curs->cursor_x, curs->cursor_y, '_');
+}
+
+void curs_move(Cursor *curs, struct Text* txt, Dirs dir){
+    switch (dir) {
+        case UP:
+            curs->cursor_y--;
+            break;
+        case DOWN:
+            curs->cursor_y++;
+            break;
+        case LEFT:
+            if(curs->cursor_x == 0) break;
+            curs->cursor_x--;
+            break;
+        case RIGHT:
+            if()
+            curs->cursor_x++;
+            break;
+    }
+}
+
+--- FILE: src/input.c ---
+#include "../include/input.h"
+
+#include <stdio.h>
+#include <unistd.h>
+
+Key inp_read_key(){
+    Key input = {KEY_UNKNOWN, 0};
+    read(STDIN_FILENO, &input.ch, 1);
+
+    // Ctrl+буква = ASCII 1-26
+    if(input.ch >= 1 && input.ch <= 26) input.code = KEY_CTRL_A + input.ch - 1;
+
+    if(input.ch == 27){
+        char a, b;
+        read(STDIN_FILENO, &a, 1);
+        read(STDIN_FILENO, &b, 1);
+
+        if(a == 91){
+            if(b == 65) input.code = KEY_UP;
+            if(b == 66) input.code = KEY_DOWN;
+            if(b == 67) input.code = KEY_RIGHT;
+            if(b == 68) input.code = KEY_LEFT;
+            if(b == 72) input.code = KEY_HOME;
+            if(b == 70) input.code = KEY_END;
+            if(b == 51){ read(STDIN_FILENO, &input.ch, 1); input.code = KEY_DELETE; }  // \x1b[3~
+
+            // Page Up/Down — \x1b[5~ и \x1b[6~
+            if(b == 53){ read(STDIN_FILENO, &input.ch, 1); input.code = KEY_PAGE_UP; }
+            if(b == 54){ read(STDIN_FILENO, &input.ch, 1); input.code = KEY_PAGE_DOWN; }
+
+            // F1-F4 — \x1b[OP и тд
+            if(b == 79){
+                char c;
+                read(STDIN_FILENO, &c, 1);
+                if(c == 80) input.code = KEY_F1;
+                if(c == 81) input.code = KEY_F2;
+                if(c == 82) input.code = KEY_F3;
+                if(c == 83) input.code = KEY_F4;
+            }
+        } else{
+            input.code = KEY_ESC;
+        }
+        
+    }
+
+    if(input.ch == '\n')  input.code = KEY_ENTER;
+    if(input.ch == 127)   input.code = KEY_BACKSPACE;
+    if(input.ch == '\t')  input.code = KEY_TAB;
+
+    return input;
+}
+
+--- FILE: src/main.c ---
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include "../include/buffer.h"
+#include "../include/terminal.h"
+#include "../include/input.h"
+#include "../include/vector.h"
+#include "../include/text.h"
+#include "../include/cursor.h"
+
+int main(){
+    term_enable_raw();
+    Buffer* buf = buf_create(20, 20);
+    Text* txt = text_new();
+    Cursor* curs = curs_new();
+    text_add_line(txt, "HELLO");
+    int x = 0;
+
+    int y = 0;
+
+    char ch;
+
+    term_clear();
+
+    while (1){
+
+        term_cursor_to_start();
+        buf_fill(buf, ' ');
+        buf_set(buf, x, y, 'P');
+        text_render(txt, buf, curs);
+        curs_render(curs, buf);
+        buf_print(buf);
+        Key key = inp_read_key();
+        if(key.ch == 'q'){
+            break;
+        } else if (key.code == KEY_RIGHT) {
+            curs_move(curs, txt, RIGHT);
+        } else if (key.code == KEY_LEFT) {
+            curs_move(curs, txt, LEFT);
+        } else if (key.code == KEY_UP) {
+            curs_move(curs, UP);
+        } else if (key.code == KEY_DOWN) {
+            curs_move(curs, DOWN);
+        }
+    }
+
+    curs_free(curs);
+    text_free(txt);
+    buf_free(buf);
+}
+
+--- FILE: src/terminal.c ---
+#include "../include/terminal.h"
+
+void term_enable_raw(){
+    struct termios t;
+    tcgetattr(STDIN_FILENO, &t);
+    t.c_lflag &= ~(ICANON | ECHO | ISIG | IEXTEN);
+    t.c_iflag &= ~(IXON | ICRNL);
+    t.c_cc[VMIN] = 1;
+    t.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+}
+
+void term_clear(){
+    printf("\033[2J");
+}
+
+void term_cursor_to_start(){
+    printf("\033[1;1H");
+}
+
+void term_enable_invert(){
+    printf("\033[7m");
+}
+
+void term_disable_invert(){
+    printf("\033[m");
+}
+
+--- FILE: src/text.c ---
+#include "../include/text.h"
+#include "../include/cursor.h"
+
+Text* text_new(){
+    Text* text = (Text*)malloc(sizeof(Text));
+    text->vector = vec_new(sizeof(char*));
+    return text;
+}
+
+void text_free(Text* text){
+    for(int i = 0; i < text->vector->size; i++){
+        free((char*)vec_get(text->vector, i));
+    }
+    vec_free(text->vector);
+    free(text);
+}
+
+void text_add_line(Text* text, const char* inp_line){
+    char* line = strdup(inp_line);
+    vec_push_back(text->vector,&line);
+}
+
+char* text_get_line(Text* text, int i) {
+    return *(char**)vec_get(text->vector, i);
+}
+
+void text_render(Text* txt, Buffer* buf, Cursor* curs){
+    for (int row = curs->global_cursor_y; row < txt->vector->size; row++) {
+        char* line = text_get_line(txt, row);
+        for (int col = curs->global_cursor_x; line[col] != '\0'; col++) {
+            buf_set(buf, col, row, line[col]);
+        }
+    }
+}
+
+--- FILE: src/vector.c ---
+#include "../include/vector.h"
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+
+vec* vec_new(int element_size_){
+    vec* v = (vec*)malloc(sizeof(vec));
+    v->element_size = element_size_;
+    v->size = 0;
+    v->capacity = 10;
+    v->data = malloc(10 * element_size_);
+    return v;
+}
+
+void vec_free(vec* v){
+    free(v->data);
+    free(v);
+}
+
+void vec_push_back(vec* v, void* value){
+    if(v->size == v->capacity){
+        int new_capasity = v->capacity * 2;
+        v->data = realloc(v->data, v->element_size * new_capasity);
+        v->capacity = new_capasity;
+    }
+    uint8_t* dst = (uint8_t*)v->data + v->size * v->element_size;
+    memcpy(dst, value, v->element_size);
+    v->size++;
+}
+
+void* vec_get(vec* v, int i){
+    return (uint8_t*)v->data + i * v->element_size;
+}
+
