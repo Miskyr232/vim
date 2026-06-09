@@ -41,12 +41,24 @@ void line_set_string(Line *line, const char *text){
     line->size = len;
 }
 
-void line_add_char(Line *line, const char ch){
+void line_add_char(Line *line, int index, const char ch){
     if(line->size + 1 == line->capacity){
         int new_capacity = line->capacity * 2;
         line->data = realloc(line->data, new_capacity);
         line->capacity = new_capacity;
     }
+
+    if (index < line->size) {
+        memmove(&line->data[index + 1], &line->data[index], line->size - index + 1);
+    }
+
+    line->data[index] = ch;
+    line->size++;
+    line->data[line->size] = '\0';
+}
+
+void line_remove_char(Line *line, Cursor *cursm){
+    
 }
 
 void text_free(Text* text){
@@ -65,20 +77,20 @@ void text_add_line(Text* text, const char* inp_line){
     vec_push_back(text->vector, &line);
 }
 
-char* text_get_line(Text* text, int i) {
+char* text_get_line_text(Text* text, int i) {
     if(i < 0 || i >= text->vector->size) return text->hyinya;
     Line** line_ptr_addr = (Line**)vec_get(text->vector, i);
     return (*line_ptr_addr)->data;
 }
 
 void text_render(Text* txt, Buffer* buf, Cursor* curs){
-    for (int row = curs->global_cursor_y; row < txt->vector->size; row++) {
-        char* line = text_get_line(txt, row);
-        if(curs->global_cursor_x >= strlen(line)){
+    for (int row = curs->scroll_y; row < txt->vector->size; row++) {
+        char* line = text_get_line_text(txt, row);
+        if(curs->scroll_x >= strlen(line)){
             continue;
         }
-        for (int col = curs->global_cursor_x; line[col] != '\0'; col++) {
-            buf_set(buf, col - curs->global_cursor_x, row - curs->global_cursor_y, line[col]);
+        for (int col = curs->scroll_x; line[col] != '\0'; col++) {
+            buf_set(buf, col - curs->scroll_x, row - curs->scroll_y, line[col]);
         }
     }
 }
@@ -100,4 +112,8 @@ void text_load_from_file(Text *txt, const char *name){
     }
 
     fclose(f);
+}
+
+Line* text_get_line(Text* txt, int index){
+    return *(Line**)vec_get(txt->vector, index);
 }

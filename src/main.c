@@ -17,8 +17,8 @@ int main(){
     Buffer* buf = buf_create(W, H);
     Text* txt = text_new();
     Cursor* curs = curs_new();
-    text_add_line(txt, "Hello привет");
-    text_load_from_file(txt, "./src/main.c");
+    text_add_line(txt, "Hello");
+    text_load_from_file(txt, "./src/cursor.c");
     
     term_clear();
 
@@ -29,7 +29,7 @@ int main(){
         curs_render(curs, buf);
         buf_print(buf);
         printf("x: %d, y: %d", curs->cursor_x, curs->cursor_y);
-        printf("gx: %d, gy: %d", curs->global_cursor_x, curs->global_cursor_y);
+        printf("gx: %d, gy: %d", curs->scroll_x, curs->scroll_y);
 
         Key key = inp_read_key();
         if(key.ch == 'q'){
@@ -42,6 +42,10 @@ int main(){
             curs_move(curs, txt, buf, UP);
         } else if(key.code == KEY_DOWN){
             curs_move(curs, txt, buf, DOWN);
+        } else if ((unsigned char)key.ch) {
+            curs_add_char(curs, txt, buf, key.ch);
+        } else if (key.code == KEY_BACKSPACE) {
+            curs_backspace(curs, txt, buf);
         }
     }
 

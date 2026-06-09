@@ -19,9 +19,9 @@ void vec_free(vec* v){
 
 void vec_push_back(vec* v, void* value){
     if(v->size == v->capacity){
-        int new_capasity = v->capacity * 2;
-        v->data = realloc(v->data, v->element_size * new_capasity);
-        v->capacity = new_capasity;
+        int new_capacity = v->capacity * 2;
+        v->data = realloc(v->data, v->element_size * new_capacity);
+        v->capacity = new_capacity;
     }
     uint8_t* dst = (uint8_t*)v->data + v->size * v->element_size;
     memcpy(dst, value, v->element_size);
@@ -31,3 +31,12 @@ void vec_push_back(vec* v, void* value){
 void* vec_get(vec* v, int i){
     return (uint8_t*)v->data + i * v->element_size;
 }
+
+void vec_remove(vec *v, int i) {
+    uint8_t *dst = (uint8_t *)v->data + i * v->element_size;
+    uint8_t *src = (uint8_t *)v->data + (i + 1) * v->element_size;
+    size_t bytes = (v->size - i - 1) * v->element_size;
+    memmove(dst, src, bytes);
+    v->size--;
+}
+
