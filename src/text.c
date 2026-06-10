@@ -57,9 +57,24 @@ void line_add_char(Line *line, int index, const char ch){
     line->data[line->size] = '\0';
 }
 
-void line_remove_char(Line *line, Cursor *cursm){
-    
+void line_remove_char(Line *line, Cursor* curs) {
+    int index_x = curs->cursor_x + curs->scroll_x;
+    if (line->size == 0 || index_x <= 0) return;
+    memmove(&line->data[index_x - 1], &line->data[index_x], line->size - index_x + 1);
+    line->size--;
 }
+
+void line_add_line(Line *line, Line *line2){
+    if(line->capacity < line2->size + line->size + 1){
+        int new_capacity = (line->size + line2->size) * 2;
+        line->capacity = new_capacity;
+        line->data = realloc(line->data, line->capacity * sizeof(char));
+    }
+    memmove(&line->data[line->size], line2->data, line2->size + 1);
+
+    line->size = line->size + line2->size;
+}
+
 
 void text_free(Text* text){
     for(int i = 0; i < text->vector->size; i++){
@@ -75,6 +90,10 @@ void text_add_line(Text* text, const char* inp_line){
     Line* line = line_new();
     line_set_string(line, inp_line);
     vec_push_back(text->vector, &line);
+}
+
+void text_remove(Text *txt, int index){
+    vec_remove(txt->vector, index);
 }
 
 char* text_get_line_text(Text* text, int i) {
@@ -116,4 +135,12 @@ void text_load_from_file(Text *txt, const char *name){
 
 Line* text_get_line(Text* txt, int index){
     return *(Line**)vec_get(txt->vector, index);
+}
+
+void text_merge_lines(Text* txt, int line_index) {
+    if(line_index == 0) return;
+    Line* src = text_get_line(txt, line_index);
+    Line* dest = text_get_line(txt, line_index - 1);
+    line_add_line(dest, src);
+    text_remove(txt, line_index);
 }

@@ -28,8 +28,9 @@ int main(){
         text_render(txt, buf, curs);
         curs_render(curs, buf);
         buf_print(buf);
-        printf("x: %d, y: %d", curs->cursor_x, curs->cursor_y);
+        printf("x: %d, y: %d  ", curs->cursor_x, curs->cursor_y);
         printf("gx: %d, gy: %d", curs->scroll_x, curs->scroll_y);
+        printf("size vector: %d", txt->vector->size);
 
         Key key = inp_read_key();
         if(key.ch == 'q'){
@@ -42,9 +43,9 @@ int main(){
             curs_move(curs, txt, buf, UP);
         } else if(key.code == KEY_DOWN){
             curs_move(curs, txt, buf, DOWN);
-        } else if ((unsigned char)key.ch) {
+        } else if (key.code == KEY_UNKNOWN && key.ch >= 32 && key.ch < 127) {
             curs_add_char(curs, txt, buf, key.ch);
-        } else if (key.code == KEY_BACKSPACE) {
+        }else if (key.code == KEY_BACKSPACE) {
             curs_backspace(curs, txt, buf);
         }
     }

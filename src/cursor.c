@@ -9,6 +9,8 @@ Cursor* curs_new(){
     curs->cursor_y = 0;
     curs->scroll_x = 0;
     curs->scroll_y = 0;
+    curs->wanted_x = 0;
+    curs->wanted_y = 0;
     return curs;
 }
 
@@ -42,7 +44,7 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
             else curs->cursor_y--;
             break;
         case DOWN:
-            if(curs->cursor_y == buf->H && curs->scroll_y == txt->vector->size - 1) break;
+            if(global_y >= txt->vector->size - 1) break;
             int len_down_line = strlen(text_get_line_text(txt, global_y + 1));
             int target_x = curs->wanted_x < len_down_line ? curs->wanted_x : len_down_line;
             if (target_x < buf->W) {
@@ -83,8 +85,34 @@ void curs_add_char(Cursor *curs, Text *txt, Buffer *buf, const char ch){
     curs_move(curs, txt, buf, RIGHT);
 }
 
-void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
-    Line* line = text_get_line(txt, curs->scroll_y + curs->cursor_y);
-    if(line->size == 0) return;
+void curs_to_end(Cursor *curs, Text *txt, Buffer *buf){
+    int end_index = text_get_line(txt, curs->cursor_y + curs->scroll_y)->size;
+    curs->cursor_x = end_index;
+}
 
+void curs_set_x(Cursor *curs, Text* txt, Buffer *buf, int index){
+    int global_x = curs->cursor_x + curs->scroll_x;
+    int global_y = curs->cursor_y + curs->scroll_y;
+    if(index > text_get_line(txt, global_y)->size) return;
+    curs->cursor_x = index;
+}
+
+void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
+    int global_y = curs->cursor_y + curs->scroll_y;
+    int global_x = curs->cursor_x + curs->scroll_x;
+    if(global_y == 0 && global_x == 0) return;
+    Line* line = text_get_line(txt, global_y);
+    Line* up_line = text_get_line(txt, global_y - 1);
+    if(line->size == 0){
+        text_remove(txt, global_y);
+        curs_move(curs, txt, buf, UP);
+    }else if(global_x == 0){
+        int old_size = up_line->size;
+        text_merge_lines(txt, global_y);
+        curs_move(curs, txt, buf, UP);
+        curs_set_x(curs, txt, buf, old_size);
+    }else{
+        line_remove_char(line, curs);
+        curs_move(curs, txt, buf, LEFT);
+    }
 }
