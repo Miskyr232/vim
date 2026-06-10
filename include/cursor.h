@@ -9,8 +9,12 @@ typedef struct Text Text;
 typedef struct Cursor_s{
     int cursor_x;
     int cursor_y;
+    
     int scroll_x;
     int scroll_y;
+
+    int wanted_x;
+    int wanted_y;
 } Cursor;
 
 Cursor* curs_new();
