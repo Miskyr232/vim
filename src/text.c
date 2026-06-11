@@ -7,8 +7,6 @@
 Text* text_new(){
     Text* text = (Text*)malloc(sizeof(Text));
     text->vector = vec_new(sizeof(Line*));
-    text->hyinya = malloc(1);
-    *text->hyinya = '~';
     return text;
 }
 
@@ -58,9 +56,9 @@ void line_add_char(Line *line, int index, const char ch){
 }
 
 void line_remove_char(Line *line, Cursor* curs) {
-    int index_x = curs->cursor_x + curs->scroll_x;
-    if (line->size == 0 || index_x <= 0) return;
-    memmove(&line->data[index_x - 1], &line->data[index_x], line->size - index_x + 1);
+    int global_x = curs->cursor_x + curs->scroll_x;
+    if (line->size == 0 || global_x <= 0) return;
+    memmove(&line->data[global_x - 1], &line->data[global_x], line->size - global_x + 1);
     line->size--;
 }
 
@@ -75,6 +73,30 @@ void line_add_line(Line *line, Line *line2){
     line->size = line->size + line2->size;
 }
 
+void line_reserve(Line *line, int new_capacity){
+    if(line->capacity < new_capacity){
+        line->capacity = new_capacity;
+        line->data = realloc(line->data, line->capacity * sizeof(char));
+    }
+}
+char* line_get_string(Line* line){
+    return line->data;
+}
+
+void line_add_text(Line *line, const char *text){
+    int text_size = strlen(text);
+    if(line->capacity < line->size + text_size + 1){
+        int new_capacity = (line->size + text_size + 16);
+        line->capacity = new_capacity;
+        line->data = realloc(line->data, line->capacity * sizeof(char));
+    }
+    memcpy(&line->data[line->size], text, text_size + 1);
+    line->size = line->size + text_size;
+}
+
+void text_set(Text *txt, int i, void* value){
+    memcpy(vec_get(txt->vector, i), value, txt->vector->element_size); 
+}
 
 void text_free(Text* text){
     for(int i = 0; i < text->vector->size; i++){
@@ -84,6 +106,10 @@ void text_free(Text* text){
     vec_free(text->vector);
     free(text->hyinya);
     free(text);
+}
+
+void text_insert_line(Text *txt, int i, Line* line){
+    vec_insert(txt->vector, i, (void*)&line);
 }
 
 void text_add_line(Text* text, const char* inp_line){
@@ -96,24 +122,39 @@ void text_remove(Text *txt, int index){
     vec_remove(txt->vector, index);
 }
 
-char* text_get_line_text(Text* text, int i) {
-    if(i < 0 || i >= text->vector->size) return text->hyinya;
-    Line** line_ptr_addr = (Line**)vec_get(text->vector, i);
-    return (*line_ptr_addr)->data;
+char* text_get_line_text(Text* text, int index) {
+    Line* l = text_get_line(text, index);
+    return (l != NULL) ? l->data : NULL;
 }
 
-void text_render(Text* txt, Buffer* buf, Cursor* curs){
+void text_render(Text* txt, Buffer* buf, Cursor* curs) {
+    if (txt == NULL || txt->vector == NULL) return;
+
     for (int row = curs->scroll_y; row < txt->vector->size; row++) {
+        // 1. Получаем указатель на строку
         char* line = text_get_line_text(txt, row);
-        if(curs->scroll_x >= strlen(line)){
+        
+        // 2. ЗАЩИТА: если строка NULL, пропускаем или прерываем
+        if (line == NULL) {
+            continue; 
+        }
+
+        // 3. Безопасное вычисление длины
+        int len = strlen(line);
+        if (curs->scroll_x >= len) {
             continue;
         }
+
+        // 4. Отрисовка символов
         for (int col = curs->scroll_x; line[col] != '\0'; col++) {
+            // Важно: проверяем границы буфера, чтобы не писать "в никуда"
+            if (col - curs->scroll_x >= buf->W || row - curs->scroll_y >= buf->H) {
+                break; 
+            }
             buf_set(buf, col - curs->scroll_x, row - curs->scroll_y, line[col]);
         }
     }
 }
-
 void text_load_from_file(Text *txt, const char *name){
     FILE* f;
     f = fopen(name, "r");
@@ -121,10 +162,9 @@ void text_load_from_file(Text *txt, const char *name){
         text_add_line(txt, "error open file");
         return;
     }
-    int ch; // Важно: используем int, а не char
-    char line[1024]; // Буфер для одной строки (максимум 1023 символа + \0)
+    int ch;
+    char line[1024]; //buffer
 
-    // fgets читает до \n или до конца буфера
     while (fgets(line, sizeof(line), f) != NULL) {
         line[strcspn(line, "\n")] = '\0';
         text_add_line(txt, line);

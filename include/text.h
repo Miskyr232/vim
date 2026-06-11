@@ -21,7 +21,9 @@ void line_set_string(Line* line, const char* text);
 void line_add_char(Line* line, int index, const char ch);
 void line_add_line(Line* line, Line* line2);
 void line_remove_char(Line* line, Cursor* curs);
-char* line_get_string();
+char* line_get_string(Line* line);
+void line_reserve(Line* line, int new_capacity);
+void line_add_text(Line* line, const char* text);
 
 typedef struct Text{
     vec* vector;
@@ -37,3 +39,5 @@ void text_remove(Text* txt, int index);
 void text_render(Text* txt, Buffer* buf, Cursor* curs);
 void text_load_from_file(Text* txt, const char* name);
 void text_merge_lines(Text* txt, int line_index);
+void text_set(Text* txt, int i, void* value);
+void text_insert_line(Text* txt, int i, Line* line);

@@ -7,7 +7,7 @@ Key inp_read_key(){
     Key input = {KEY_UNKNOWN, 0};
     read(STDIN_FILENO, &input.ch, 1);
 
-    // Ctrl+буква = ASCII 1-26
+    // ctrl + letter
     if(input.ch >= 1 && input.ch <= 26) input.code = KEY_CTRL_A + input.ch - 1;
 
     if(input.ch == 27){
@@ -43,7 +43,7 @@ Key inp_read_key(){
         
     }
 
-    if(input.ch == '\n')  input.code = KEY_ENTER;
+    if(input.ch == '\r')  input.code = KEY_ENTER;
     if(input.ch == 127)   input.code = KEY_BACKSPACE;
     if(input.ch == '\t')  input.code = KEY_TAB;
 

@@ -40,3 +40,17 @@ void vec_remove(vec *v, int i) {
     v->size--;
 }
 
+void vec_insert(vec *v, int i, void *value){
+    if(v->capacity < v->size + 1){
+        int new_capacity = v->capacity * 2;
+        v->data = realloc(v->data, v->element_size * new_capacity);
+        v->capacity = new_capacity;
+    }
+    memmove(
+        (uint8_t*)v->data + ((i + 1) * v->element_size), // Куда: i + 1
+        (uint8_t*)v->data + (i * v->element_size),       // Откуда: i
+        v->element_size * (v->size - i)                  // Сколько байт: до конца вектора
+    );
+    memcpy((uint8_t*)v->data + (i * v->element_size), value, v->element_size);
+    v->size++;
+}

@@ -25,3 +25,4 @@ void curs_add_char(Cursor* curs, Text* txt, Buffer* buf, char ch);
 void curs_backspace(Cursor* curs, Text* txt, Buffer* buf);
 void curs_to_end(Cursor* curs, Text* txt, Buffer* buf);
 void curs_set_x(Cursor* curs, Text* txt, Buffer* buf, int x);
+void curs_enter(Cursor* curs, Text* txt, Buffer* buf);

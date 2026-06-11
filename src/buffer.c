@@ -1,4 +1,5 @@
 #include "../include/buffer.h"
+#include "../include/settings.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,12 +34,25 @@ char buf_get(Buffer *buf, int x, int y){
 void buf_print(Buffer* buf){
     int d = 1;
     for(int i = 0; i < buf->H * buf->W; i++){
-        printf("%c", buf->data[i]);
-        if(d == buf->W){
-            d = 0;
-            printf("\n");
+        if(buf->data[i] == '\t'){
+            for(int _ = 0; _ < g_settings.tab_size; _++){
+                printf(" ");
+                if(d == buf->W){
+                    d = 1;
+                    printf("\n");
+                } else {
+                    d++;
+                }
+            }
+        } else {
+            printf("%c", buf->data[i]);
+            if(d == buf->W){
+                d = 1;
+                printf("\n");
+            } else {
+                d++;
+            }
         }
-        d++;
     }
 }
 

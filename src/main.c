@@ -7,6 +7,7 @@
 #include "../include/vector.h"
 #include "../include/text.h"
 #include "../include/cursor.h"
+#include "../include/log.h"
 
 int main(){
     term_enable_raw();
@@ -21,13 +22,19 @@ int main(){
     text_load_from_file(txt, "./src/cursor.c");
     
     term_clear();
-
+    LOG_OPEN("vim.log");
+    LOG("start");
     while(1){
         term_cursor_to_start();
+        LOG("cursor in start");
         buf_fill(buf, ' ');
+        LOG("buff filed ' '");
         text_render(txt, buf, curs);
+        LOG("text rendered");
         curs_render(curs, buf);
+        LOG("curs rendered");
         buf_print(buf);
+        LOG("buf printed");
         printf("x: %d, y: %d  ", curs->cursor_x, curs->cursor_y);
         printf("gx: %d, gy: %d", curs->scroll_x, curs->scroll_y);
         printf("size vector: %d", txt->vector->size);
@@ -47,9 +54,16 @@ int main(){
             curs_add_char(curs, txt, buf, key.ch);
         }else if (key.code == KEY_BACKSPACE) {
             curs_backspace(curs, txt, buf);
+        } else if(key.code == KEY_ENTER){
+            curs_enter(curs, txt, buf);
         }
+        else if(key.code = KEY_TAB){
+            curs_add_char(curs, txt, buf, '\t');
+        }
+        LOG("\n");
     }
 
+    LOG_CLOSE();
     curs_free(curs);
     text_free(txt);
     buf_free(buf);

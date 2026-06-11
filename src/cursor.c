@@ -1,7 +1,11 @@
 #include "../include/cursor.h"
 #include "../include/text.h"
 #include "../include/utils.h"
+#include "../include/log.h"
+#include "../include/settings.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 Cursor* curs_new(){
     Cursor* curs = (Cursor*)malloc(sizeof(Cursor));
@@ -32,7 +36,9 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
         case UP:
             if(curs->cursor_y == 0 && curs->scroll_y == 0) break;
             int len_top_line = strlen(text_get_line_text(txt, global_y - 1));
-            target_x = curs->wanted_x < len_top_line ? curs->wanted_x : len_top_line;
+            target_x = g_settings.use_target_x
+                ? (curs->wanted_x < len_top_line ? curs->wanted_x : len_top_line)
+                : (curs->cursor_x < len_top_line ? curs->cursor_x : len_top_line);
             if (target_x < buf->W) {
                 curs->cursor_x = target_x;
                 curs->scroll_x = 0;
@@ -46,7 +52,9 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
         case DOWN:
             if(global_y >= txt->vector->size - 1) break;
             int len_down_line = strlen(text_get_line_text(txt, global_y + 1));
-            int target_x = curs->wanted_x < len_down_line ? curs->wanted_x : len_down_line;
+            int target_x = g_settings.use_target_x
+                ? (curs->wanted_x < len_down_line ? curs->wanted_x : len_down_line)
+                : (curs->cursor_x < len_down_line ? curs->cursor_x : len_down_line);
             if (target_x < buf->W) {
                 curs->cursor_x = target_x;
                 curs->scroll_x = 0;
@@ -103,10 +111,7 @@ void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
     if(global_y == 0 && global_x == 0) return;
     Line* line = text_get_line(txt, global_y);
     Line* up_line = text_get_line(txt, global_y - 1);
-    if(line->size == 0){
-        text_remove(txt, global_y);
-        curs_move(curs, txt, buf, UP);
-    }else if(global_x == 0){
+    if(global_x == 0){
         int old_size = up_line->size;
         text_merge_lines(txt, global_y);
         curs_move(curs, txt, buf, UP);
@@ -115,4 +120,25 @@ void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
         line_remove_char(line, curs);
         curs_move(curs, txt, buf, LEFT);
     }
+}
+
+void curs_enter(Cursor *curs, Text *txt, Buffer *buf) {
+    int global_y = curs->cursor_y + curs->scroll_y;
+    int global_x = curs->cursor_x + curs->scroll_x;
+    
+    Line* old_line = text_get_line(txt, global_y);
+
+    Line* new_right = line_new();
+    line_add_text(new_right, &old_line->data[global_x]);
+
+    old_line->data[global_x] = '\0';
+    for(int i = global_x + 1; old_line->data[i] != '\0'; i++)
+        old_line->data[i] = '\0';
+    old_line->size = global_x;
+
+    text_insert_line(txt, global_y + 1, new_right); 
+
+    curs->cursor_x = 0;
+    curs->scroll_x = 0;
+    curs_move(curs, txt, buf, DOWN);
 }
