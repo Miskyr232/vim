@@ -1,70 +1,15 @@
-#include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
-#include "../include/buffer.h"
-#include "../include/terminal.h"
 #include "../include/input.h"
-#include "../include/vector.h"
-#include "../include/text.h"
-#include "../include/cursor.h"
-#include "../include/log.h"
+#include "../include/editor.h"
 
 int main(){
-    term_enable_raw();
-    int W, H;
-    term_get_size(&H, &W);
-    W -= 2;
-    H -= 2;
-    Buffer* buf = buf_create(W, H);
-    Text* txt = text_new();
-    Cursor* curs = curs_new();
-    text_add_line(txt, "Hello");
-    text_load_from_file(txt, "./src/cursor.c");
-    
-    term_clear();
-    LOG_OPEN("vim.log");
-    LOG("start");
-    while(1){
-        term_cursor_to_start();
-        LOG("cursor in start");
-        buf_fill(buf, ' ');
-        LOG("buff filed ' '");
-        text_render(txt, buf, curs);
-        LOG("text rendered");
-        curs_render(curs, buf);
-        LOG("curs rendered");
-        buf_print(buf);
-        LOG("buf printed");
-        printf("x: %d, y: %d  ", curs->cursor_x, curs->cursor_y);
-        printf("gx: %d, gy: %d", curs->scroll_x, curs->scroll_y);
-        printf("size vector: %d", txt->vector->size);
-
+    Editor* e = edit_new("/home/miskyr/projects/c/vim/input.txt");
+    edit_init_term(e);
+    while(e->running){
+        edit_render(e);
         Key key = inp_read_key();
-        if(key.ch == 'q'){
-            break;
-        } else if(key.code == KEY_RIGHT){
-            curs_move(curs, txt, buf, RIGHT);
-        } else if(key.code == KEY_LEFT){
-            curs_move(curs, txt, buf, LEFT);
-        } else if(key.code == KEY_UP){
-            curs_move(curs, txt, buf, UP);
-        } else if(key.code == KEY_DOWN){
-            curs_move(curs, txt, buf, DOWN);
-        } else if (key.code == KEY_UNKNOWN && key.ch >= 32 && key.ch < 127) {
-            curs_add_char(curs, txt, buf, key.ch);
-        }else if (key.code == KEY_BACKSPACE) {
-            curs_backspace(curs, txt, buf);
-        } else if(key.code == KEY_ENTER){
-            curs_enter(curs, txt, buf);
-        }
-        else if(key.code = KEY_TAB){
-            curs_add_char(curs, txt, buf, '\t');
-        }
-        LOG("\n");
+        edit_handle_key(e, key);
     }
-
-    LOG_CLOSE();
-    curs_free(curs);
-    text_free(txt);
-    buf_free(buf);
+    edit_free(e);
 }
