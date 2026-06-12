@@ -6,3 +6,8 @@ typedef enum{
     LEFT,
     RIGHT,
 } Dirs;
+
+typedef struct {
+    int x, y; // начало
+    int w, h; // размер
+} Rect;

@@ -127,7 +127,7 @@ char* text_get_line_text(Text* text, int index) {
     return (l != NULL) ? l->data : NULL;
 }
 
-void text_render(Text* txt, Buffer* buf, Cursor* curs) {
+void text_render(Text* txt, Buffer*buf, Rect rect, Cursor* curs) {
     if (txt == NULL || txt->vector == NULL) return;
 
     for (int row = curs->scroll_y; row < txt->vector->size; row++) {
@@ -148,7 +148,7 @@ void text_render(Text* txt, Buffer* buf, Cursor* curs) {
         // 4. Отрисовка символов
         for (int col = curs->scroll_x; line[col] != '\0'; col++) {
             // Важно: проверяем границы буфера, чтобы не писать "в никуда"
-            if (col - curs->scroll_x >= buf->W || row - curs->scroll_y >= buf->H) {
+            if (col - curs->scroll_x >= rect.w || row - curs->scroll_y >= rect.h) {
                 break; 
             }
             buf_set(buf, col - curs->scroll_x, row - curs->scroll_y, line[col]);

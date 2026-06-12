@@ -23,10 +23,10 @@ void curs_free(Cursor *curs){
 }
 
 void curs_render(Cursor* curs, Buffer* buf){
-    buf_set(buf, curs->cursor_x, curs->cursor_y, '_');
+    buf_set_fg(buf, curs->cursor_x, curs->cursor_y, COL_INVERT);
 }
 
-void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
+void curs_move(Cursor *curs, Text* txt, Rect rect, Dirs dir){
     int global_x, global_y;
     int target_x;
     global_y = curs->cursor_y + curs->scroll_y;
@@ -39,12 +39,12 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
             target_x = g_settings.use_target_x
                 ? (curs->wanted_x < len_top_line ? curs->wanted_x : len_top_line)
                 : (curs->cursor_x < len_top_line ? curs->cursor_x : len_top_line);
-            if (target_x < buf->W) {
+            if (target_x < rect.w) {
                 curs->cursor_x = target_x;
                 curs->scroll_x = 0;
             } else {
-                curs->cursor_x = buf->W - 1;
-                curs->scroll_x = target_x - (buf->W - 1);
+                curs->cursor_x = rect.w - 1;
+                curs->scroll_x = target_x - (rect.w - 1);
             }
             if (curs->cursor_y == 0) curs->scroll_y--;
             else curs->cursor_y--;
@@ -55,14 +55,14 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
             int target_x = g_settings.use_target_x
                 ? (curs->wanted_x < len_down_line ? curs->wanted_x : len_down_line)
                 : (curs->cursor_x < len_down_line ? curs->cursor_x : len_down_line);
-            if (target_x < buf->W) {
+            if (target_x < rect.w) {
                 curs->cursor_x = target_x;
                 curs->scroll_x = 0;
             } else {
-                curs->cursor_x = buf->W - 1;
-                curs->scroll_x = target_x - (buf->W - 1);
+                curs->cursor_x = rect.w - 1;
+                curs->scroll_x = target_x - (rect.w - 1);
             }
-            if (curs->cursor_y == buf->H - 1) curs->scroll_y++;
+            if (curs->cursor_y == rect.h - 2) curs->scroll_y++;
             else curs->cursor_y++;
             break;
         case LEFT:
@@ -78,7 +78,7 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
             int len_line = strlen(text_get_line_text(txt, global_y));
             if(global_x >= len_line)
                 break;
-            if(curs->cursor_x == buf->W - 1)
+            if(curs->cursor_x == rect.w - 1)
                 curs->scroll_x++;
             else
                 curs->cursor_x++;
@@ -87,25 +87,25 @@ void curs_move(Cursor *curs, Text* txt, Buffer* buf, Dirs dir){
     }
 }
 
-void curs_add_char(Cursor *curs, Text *txt, Buffer *buf, const char ch){
+void curs_add_char(Cursor *curs, Text *txt, Rect rect, const char ch){
     Line* line = text_get_line(txt, curs->scroll_y + curs->cursor_y);
     line_add_char(line, curs->scroll_x + curs->cursor_x, ch);
-    curs_move(curs, txt, buf, RIGHT);
+    curs_move(curs, txt, rect, RIGHT);
 }
 
-void curs_to_end(Cursor *curs, Text *txt, Buffer *buf){
+void curs_to_end(Cursor *curs, Text *txt){
     int end_index = text_get_line(txt, curs->cursor_y + curs->scroll_y)->size;
     curs->cursor_x = end_index;
 }
 
-void curs_set_x(Cursor *curs, Text* txt, Buffer *buf, int index){
+void curs_set_x(Cursor *curs, Text* txt, int index){
     int global_x = curs->cursor_x + curs->scroll_x;
     int global_y = curs->cursor_y + curs->scroll_y;
     if(index > text_get_line(txt, global_y)->size) return;
     curs->cursor_x = index;
 }
 
-void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
+void curs_backspace(Cursor *curs, Text *txt, Rect rect){
     int global_y = curs->cursor_y + curs->scroll_y;
     int global_x = curs->cursor_x + curs->scroll_x;
     if(global_y == 0 && global_x == 0) return;
@@ -114,15 +114,15 @@ void curs_backspace(Cursor *curs, Text *txt, Buffer *buf){
     if(global_x == 0){
         int old_size = up_line->size;
         text_merge_lines(txt, global_y);
-        curs_move(curs, txt, buf, UP);
-        curs_set_x(curs, txt, buf, old_size);
+        curs_move(curs, txt, rect, UP);
+        curs_set_x(curs, txt, old_size);
     }else{
         line_remove_char(line, curs);
-        curs_move(curs, txt, buf, LEFT);
+        curs_move(curs, txt, rect, LEFT);
     }
 }
 
-void curs_enter(Cursor *curs, Text *txt, Buffer *buf) {
+void curs_enter(Cursor *curs, Text *txt, Rect rect) {
     int global_y = curs->cursor_y + curs->scroll_y;
     int global_x = curs->cursor_x + curs->scroll_x;
     
@@ -140,5 +140,5 @@ void curs_enter(Cursor *curs, Text *txt, Buffer *buf) {
 
     curs->cursor_x = 0;
     curs->scroll_x = 0;
-    curs_move(curs, txt, buf, DOWN);
+    curs_move(curs, txt, rect, DOWN);
 }

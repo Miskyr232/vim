@@ -1,6 +1,8 @@
 #include "../include/input.h"
 
 #include <stdio.h>
+#include <sys/select.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 Key inp_read_key(){
@@ -9,12 +11,20 @@ Key inp_read_key(){
 
     // ctrl + letter
     if(input.ch >= 1 && input.ch <= 26) input.code = KEY_CTRL_A + input.ch - 1;
-
     if(input.ch == 27){
+        fd_set fds;
+        struct timeval tv = {0, 50000}; // 50ms
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
+        
+        if(select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) <= 0){
+            input.code = KEY_ESC;
+            return input;
+        }
+        
         char a, b;
         read(STDIN_FILENO, &a, 1);
         read(STDIN_FILENO, &b, 1);
-
         if(a == 91){
             if(b == 65) input.code = KEY_UP;
             if(b == 66) input.code = KEY_DOWN;

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "buffer.h"
+#include "utils.h"
 #include "vector.h"
 
 typedef struct Cursor_s Cursor;
@@ -36,7 +37,7 @@ void text_add_line(Text* text, const char* inp_line);
 char* text_get_line_text(Text* text, int index);
 Line* text_get_line(Text* text, int index);
 void text_remove(Text* txt, int index);
-void text_render(Text* txt, Buffer* buf, Cursor* curs);
+void text_render(Text* txt, Buffer* buf, Rect rect, Cursor* curs);
 void text_load_from_file(Text* txt, const char* name);
 void text_merge_lines(Text* txt, int line_index);
 void text_set(Text* txt, int i, void* value);
